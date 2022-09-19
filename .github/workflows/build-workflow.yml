@@ -1,0 +1,45 @@
+name: Build workflow
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  unittest:
+    name: Unit test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source code
+        uses: actions/checkout@v3
+
+      - name: Setup .Net Core SDK
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 3.1
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build 
+        run: dotnet build --configuration Release --no-restore
+      - name: Test 
+        run: dotnet test --no-restore --verbosity normal
+
+  ## Add CodeQL Scanning here before we build docker image
+  ##
+  ##
+  
+
+  containerized:
+    name: Build Docket Image 
+    runs-on: ubuntu-latest
+    needs:
+      - unittest
+      - sourcecode-scanning
+
+    steps:
+      - name: Checkout Source code 
+        uses: actions/checkout@v3
+        
+      - name: Run docker build
+        run: docker build . --file Dockerfile --tag repo-name/simple-service:${{ github.sha }}
+
