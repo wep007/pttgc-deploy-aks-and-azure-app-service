@@ -1,6 +1,6 @@
 ---
 apiVersion: apps/v1
-Kind: deployment 
+kind: deployment 
 metadata:
   name: user-service
   labels:
