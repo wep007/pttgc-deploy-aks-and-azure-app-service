@@ -18,7 +18,6 @@
  ```console
  
 export RESOURCE_GROUP="$(az group list --query "[?location=='eastasia']" | jq -r '.[0].name')"
-export REPO_NAME="$(az acr list | jq -r '.[].name')"
 
  groupId=$(az group show \
    --name ${RESOURCE_GROUP} \
@@ -37,16 +36,14 @@ export REPO_NAME="$(az acr list | jq -r '.[].name')"
  <img width="761" alt="Screen Shot 2565-08-23 at 22 35 05" src="https://user-images.githubusercontent.com/46469458/186200948-9cfecd01-e02e-4fa1-a861-d2a8fb24e64c.png">
 
 5. Third command to login to ACR. Please change <registry-name> to your registry name from step 4.
-
-Please change `<registry-name>` with result from this command 
  
  ```console
- echo $REPO_NAME
+ export REPO_NAME="$(az acr list | jq -r '.[].name')"
  ```
 
 ```console
  registryId=$(az acr show \
-   --name <registry-name> \
+   --name ${REPO_NAME} \
    --query id --output tsv)
  ```
    
@@ -62,7 +59,13 @@ Please change `<registry-name>` with result from this command
  
 <img width="1512" alt="Screen Shot 2565-08-23 at 20 04 07" src="https://user-images.githubusercontent.com/46469458/186165619-ac871267-2a51-4aed-bc55-60612e7e48c7.png">
  
-7. Create Github Repo.
+7. Get `REGISTRY_LOGIN_SERVER`
+ 
+   ```console
+   az acr list | jq -r '.[].loginServer'
+   ```
+ 
+8. Create Github Repo.
 
  In the GitHub UI, navigate to your forked repository and select Settings > Secrets > Actions and Select New repository secret to add the following secrets:
 
