@@ -76,20 +76,88 @@ Reference : https://docs.microsoft.com/en-us/azure/container-instances/container
 ---
 
 ## Exercise 1
-### Deploy to Dev Slot
-1. Login to Azure Portal, goto `App Services` then select the App service from the list
-2. Add `dev` slot, go to `Deployment slots` then click `Add slot`, set name as `dev` and clone the setting fromt an existing one
+### Create AKS CD workflow
+From file `.github/workflows/build-workflow.yml`, there are CI jobs already provided, most of the job's detail are from the previous lab. In this lab we will add the CD jobs to deploy the built image to AKS cluster
 
-3. Click on deployment slot `dev` and then Go to `Overview` menu and click `Get publish profile` to download the publish profile
-![Download Publish profile](./assets/get-publish-profile-01.PNG)
+*Additional Prerequisites*
+- AKS Cluster name (Login to Azure Portal, Kubernetes Service, and get the cluster name from `Overview` menu)
+- Resource Group name 
+![Prerequisites](./assets/aks-pre-requisits.png)
 
 
-4. Create Secret name `AZURE_WEBAPP_PUBLISH_PROFILE` with the content from file that download
-from step 2
-5. Add another jobs to deploy to dev slot
+1. Create repository secret name `AKS_CLUSTER_NAME` with the AKS cluster name value
+2. Create repository secret name `AZURE_RESOURCE_GROUP` with the resource group name
+3. Create repository secret name `AZURE_CREDENTIALS` with the json value from `Prerequisites` step#6
+<img width="1512" alt="Screen Shot 2565-08-23 at 20 04 07" src="https://user-images.githubusercontent.com/46469458/186165619-ac871267-2a51-4aed-bc55-60612e7e48c7.png">
+
+4. Create repository secret name `REGISTRY_LOGIN_SERVER` (See `Prerequisites` section)
+5. Create repository secret name `REGISTRY_USERNAME` (See `Prerequisites` section)
+6. Create repository secret name `REGISTRY_PASSWORD` (See `Prerequisites` section)
+
+7. Update `./manifests/deployment.yaml` at line 25
+` pttgcacr.azurecr.io/user-service:unstable` to `<your REGISTRY LOGIN SERVER>/user-service:unstable`
+
+8. Update `.github/workflows/build-workflow.yml` and add the AKS deployment step as below
 ```yaml
-deploy-dev:
-    name: Deploy to Dev Slot
+  deploy-aks:
+    name: Deploy to AKS cluster
+    runs-on: ubuntu-latest
+    needs: containerized
+
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v3
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          audience: api://githubAction
+      - name: Get K8S context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+        id: login 
+      - name: Deploy Application
+        uses: azure/k8s-deploy@v3
+        with:
+          manifests: ./manifests/deployment.yaml
+          images: |
+            ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
+```
+
+9. Commit & Push the code Then monitor the running workflows to see how it's running
+10. Once the deployment is done. Go go Azure Portal, Kubernetes Services. Then go to menu, `Services and ingresses`, click on `External IP` for `user-service` record
+
+Example:
+
+![Validation-1](./assets/aks-validate-1.png)
+
+This repository is a simple RESTful API, we can see the application info from this api (by append the `/api/info` to the path)
+
+Example:
+
+![Validation-2](./assets/aks-validate-2.PNG)
+
+
+
+
+## Exercise 2
+### Deploy same image to Azure App Service
+
+Objective of this workflow jobs is to demonstrate that we can reuse the same CI (Continuous Integration) workflow while still able to deploy the image to either AKS, Azure App Service or both.
+
+This exercise we will extend `.github/workflows/build-workflow.yml` to also deploy the built image to Azure App Service as well.
+
+1. Login to Azure Portal, App Services, you should see the app service that contain name `userservice` already created for you.
+2. `Overview` page, click `Get publish profile` to download the publish profile file
+3. In your github repository, create repository secret name `AZURE_WEBAPP_PUBLISH_PROFILE` and copy all the content from file that downloaded from step#2 as a value of this secret.
+4. Add another job to `.github/workflows/build-workflow.yml` to deploy the same image to Azure App Service 
+
+Example:
+```yaml
+deploy-app-service:
+    name: Deploy to Azure App Service
     runs-on: ubuntu-latest
     needs: containerized
 
@@ -97,16 +165,34 @@ deploy-dev:
       - name: deploy dev slot
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'simple-service'
+          #app-name: 'pttgc-simple-app'
+          app-name: 'pttgc-user-service'
           # Add publish profile from secret that created from publish profile which we downloaded from Azure Portal
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          images: 'repo-name/simple-service:${{ github.sha }}'
+          slot-name: production
+          images:  ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
 ```
-6. Commit and push the code, and see how the workflow is running
-7. Login to Azure portal, App Service and see the changes
+*NOTE: `app-name:` should be the value of your app services, please check the Azure Portal to get the exact name of your app service, it's the same name from step#1*
+
+5. Commit & Push the code, then monitor your workflow, to see how it's running.
+
+You should see something like this
+
+![Completed Workflow](./assets/completed-workflow.PNG)
+
+6. Login to your Azure Portal, App Services then go to your userservice app services
+
+7. On `Overview` page, click on the `URL` to validate the app
+
+Example:
+![Validate 1](./assets/as-validate-1.png)
+
+8. Since our `user-service` app is a RESTful API and provide the api `/api/info`, append this path to your url from step#7. You should see the response like this
+
+![Validate 2](./assets/as-validate-2.PNG)
 
 
-## Exercise 2
-### 
 
+## References
+- The completed workflow also provided in `.github/workflows/build-final.yml`
 
