@@ -2,7 +2,7 @@ name: Build workflow
 on: 
   push:
     branches:
-      - dev
+      - main
 
 jobs:
   unittest:
@@ -23,10 +23,6 @@ jobs:
         run: dotnet build --configuration Release --no-restore
       - name: Test 
         run: dotnet test --no-restore --verbosity normal
-
-  ## Add CodeQL Scanning here before we build docker image
-  ##
-  ##
 
   sourcecode-scanning:
     name: Scan source code with CodeQL 
@@ -69,12 +65,12 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
         
       - name: Run docker build
-        run: docker build . --file Dockerfile --tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/simple-service:${{ github.sha }}
+        run: docker build . --file Dockerfile --tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ secrets.REGISTRY_LOGIN_SERVER }}/simple-service:${{ github.sha }}'
+          image-ref: '${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}'
           format: 'table'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -87,7 +83,7 @@ jobs:
       
       - name: Push an image to ACR
         run: |
-              docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/simple-service:${{ github.sha }}
+              docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
 
   deploy-aks:
     name: Deploy to Dev Slot
@@ -113,5 +109,5 @@ jobs:
         with:
           manifests: ./manifest/deployment.yaml
           images: |
-            ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.PROJECT_NAME }}:${{ github.SHA }}
+            ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
 
