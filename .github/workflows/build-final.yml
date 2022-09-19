@@ -2,7 +2,8 @@ name: Build workflow completed
 on: 
   push:
     branches:
-      - main
+    # Enable this workflow by changing the branch name to main
+      - disabled
 
 jobs:
   unittest:
