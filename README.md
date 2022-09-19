@@ -104,6 +104,6 @@ deploy-dev:
 
 
 ## Exercise 2
-### Deploy to production slot
+### 
 
 
