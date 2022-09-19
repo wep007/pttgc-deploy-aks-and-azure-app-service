@@ -2,7 +2,7 @@ name: Build workflow
 on: 
   push:
     branches:
-      - main
+      - dev
 
 jobs:
   unittest:
