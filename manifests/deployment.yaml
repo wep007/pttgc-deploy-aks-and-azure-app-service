@@ -7,7 +7,11 @@ metadata:
     app: user-service
 spec: 
   replicas: 1
-  strategy: RollingUpdate
+  strategy: 
+    type: RollingUpdate
+    RollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: user-service
