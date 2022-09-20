@@ -24,10 +24,27 @@ jobs:
       - name: Test 
         run: dotnet test --no-restore --verbosity normal
 
-  ## Add CodeQL Scanning here before we build docker image
-  ##
-  ##
-  
+  sourcecode-scanning:
+    name: Scan source code with CodeQL 
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: 
+        language: ['csharp']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Initial CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{matrix.language}}"
 
   containerized:
     name: Build Docket Image 
@@ -40,6 +57,31 @@ jobs:
       - name: Checkout Source code 
         uses: actions/checkout@v3
         
+      - name: 'Docker Login'
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+        
       - name: Run docker build
-        run: docker build . --file Dockerfile --tag repo-name/simple-service:${{ github.sha }}
+        run: docker build . --file Dockerfile --tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}'
+          format: 'table'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          security-checks: 'vuln'
+          output: 'trivy-results.sarif'
+      - uses: actions/upload-artifact@v3
+        with:
+          name: code-scan-result
+          path: trivy-results.sarif
+      
+      - name: Push an image to ACR
+        run: |
+              docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/user-service:${{ github.sha }}
 
